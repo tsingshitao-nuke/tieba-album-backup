@@ -1,0 +1,24 @@
+# 构建产物（体积大，不进仓库）
+dist/
+dist_final/
+build/
+_old_builds/
+
+# 运行/输出产物
+输出/
+browser_profile/
+
+# Python
+__pycache__/
+*.pyc
+*.spec.bak
+
+# 日志与自检结果
+*.log
+启动错误.log
+selftest_result.txt
+
+# 系统/编辑器
+.DS_Store
+Thumbs.db
+*.swp

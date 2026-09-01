@@ -1,0 +1,16 @@
+# 贴吧相册备份工具 —— Python 依赖
+#
+# 说明：
+#   浏览器复用系统自带的 Microsoft Edge（channel="msedge"），
+#   因此**无需**执行 `playwright install chromium`。
+#
+#   playwright  仅用于「相册列表页」——该页对 curl / 无头 CLI 一律返回百度安全验证，
+#               只有真实有头浏览器能过。图片清单 / 原图 / 评论三个接口都不需要它。
+#   lxml        解析相册列表页（贴吧把数据藏在 <!-- --> 注释里）
+#   requests    图片清单 / 原图 / 评论接口的 HTTP 客户端（贴吧接口是 GBK 编码）
+#   websocket-client  「CDP 瘦身版」用（系统 Edge + CDP 协议取 DOM，可去掉 playwright）
+
+requests>=2.28
+lxml>=4.9
+playwright>=1.40
+websocket-client>=1.5
