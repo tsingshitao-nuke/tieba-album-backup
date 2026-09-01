@@ -47,7 +47,7 @@ def _link_stylesheet_hrefs(html):
     return hrefs
 
 
-def download_text(url, timeout=25):
+def download_text(url, timeout=8):
     """下载文本资源（CSS），utf-8 / gb18030 / gbk 解码兜底。"""
     req = urllib.request.Request(url, headers={
         "User-Agent": USER_AGENT,

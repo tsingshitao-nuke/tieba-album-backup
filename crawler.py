@@ -154,6 +154,48 @@ class Crawler(object):
         taken.add(name)
         return name
 
+    # ------------------------------------------------------------------
+    def _close_backend_async(self, backend):
+        """后台线程关浏览器：即便浏览器不配合退出，也不阻塞备份主流程。"""
+        def _c():
+            try:
+                backend.close()
+            except Exception:
+                pass
+        t = threading.Thread(target=_c, daemon=True)
+        t.start()
+
+    def _bounded_extract_css(self, list_html, kw_dir, timeout=20):
+        """限时后台线程抽取 CSS；超时/失败都返回 None（离线页面用内置 fallback 兜底）。
+
+        后台线程内不直接回调 self.log（避免从非主线程触达 Tk），先把日志收进列表，
+        回到主线程后再统一 flush。
+        """
+        collected = []
+        holder = {}
+
+        def _log(m):
+            collected.append(m)
+
+        def _run():
+            try:
+                holder["r"] = css_extract.extract_link_css(list_html, kw_dir, log=_log)
+            except Exception as exc:                        # noqa: BLE001
+                holder["err"] = exc
+
+        th = threading.Thread(target=_run, daemon=True)
+        th.start()
+        th.join(timeout)
+        for m in collected:
+            self.log(m)
+        if th.is_alive():
+            self.log("核心 CSS 抽取超时（%ds），跳过，离线页面将用内置 fallback 样式兜底。" % timeout)
+            return None
+        if "err" in holder:
+            self.log("核心 CSS 抽取失败（页面将用内置 fallback 兜底）：%s" % holder["err"])
+            return None
+        return holder.get("r")
+
     @staticmethod
     def _album_entry(man, tid):
         for a in (man or {}).get("albums") or []:
@@ -191,16 +233,16 @@ class Crawler(object):
                          "未登录大概率解析不到相册（图片与评论接口本身不需要登录）。")
             albums, list_html, list_url = fetch_album_list(backend, self.kw, log=self.log)
         finally:
-            backend.close()
+            # 关浏览器放到后台线程：即便 Edge 不配合退出，也不阻塞后续备份流程
+            self._close_backend_async(backend)
 
         if opts.save_raw and list_html:
             snapshot.write_raw_snapshot(os.path.join(kw_dir, "相册列表_原始快照.html"), list_html)
-            try:
-                css_rel = css_extract.extract_link_css(list_html, kw_dir, log=self.log)
-                if css_rel:
-                    self.log("已抽取贴吧核心 CSS（本地还原用）：%s" % css_rel)
-            except Exception as e:
-                self.log("核心 CSS 抽取失败（页面将用内置 fallback 兜底）：%s" % e)
+            # CSS 抽取放进「限时后台线程」：贴吧 CSS CDN 在某些网络下 Python 直连会卡死，
+            # 而它只是视觉还原的锦上添花（snapshot 有内置 fallback），绝不能拖住备份主流程。
+            css_rel = self._bounded_extract_css(list_html, kw_dir)
+            if css_rel:
+                self.log("已抽取贴吧核心 CSS（本地还原用）：%s" % css_rel)
 
         if self._stopped():
             self.log("已停止。")
