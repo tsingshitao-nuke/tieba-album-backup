@@ -3,6 +3,7 @@ dist/
 dist_final/
 build/
 _old_builds/
+_release_tmp/
 
 # 运行/输出产物
 输出/
